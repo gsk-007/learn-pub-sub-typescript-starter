@@ -14,6 +14,8 @@ import {
 import { ExchangePerilDirect, PauseKey } from "../internal/routing/routing.js";
 import { commandSpawn } from "../internal/gamelogic/spawn.js";
 import { commandMove } from "../internal/gamelogic/move.js";
+import { subscribeJSON } from "../internal/pubsub/subscribeJSON.js";
+import { handlerPause } from "./handlers.js";
 
 async function main() {
     console.log("Starting Peril client...");
@@ -45,6 +47,15 @@ async function main() {
     );
 
     const gameState = new GameState(username);
+
+    subscribeJSON(
+        connection,
+        ExchangePerilDirect,
+        `${PauseKey}.${username}`,
+        PauseKey,
+        SimpleQueueType.Transient,
+        handlerPause(gameState),
+    );
 
     while (true) {
         const words = await getInput();
