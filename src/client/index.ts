@@ -44,7 +44,7 @@ async function main() {
 
     const username = await clientWelcome();
     const gameState = new GameState(username);
-    const publishCh = await connection.createChannel();
+    const publishCh = await connection.createConfirmChannel();
 
     await subscribeJSON(
         connection,
@@ -82,7 +82,6 @@ async function main() {
             try {
                 const move = commandMove(gameState, words);
                 await publishJSON(
-                    // @ts-ignore
                     publishCh,
                     ExchangePerilTopic,
                     `${ArmyMovesPrefix}.${username}`,
