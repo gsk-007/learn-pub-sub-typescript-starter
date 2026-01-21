@@ -1,4 +1,4 @@
-import amqp, { ConfirmChannel } from "amqplib";
+import amqp from "amqplib";
 import {
     clientWelcome,
     commandStatus,
@@ -82,7 +82,8 @@ async function main() {
             try {
                 const move = commandMove(gameState, words);
                 await publishJSON(
-                    publishCh as ConfirmChannel,
+                    // @ts-ignore
+                    publishCh,
                     ExchangePerilTopic,
                     `${ArmyMovesPrefix}.${username}`,
                     move,
