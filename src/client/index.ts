@@ -1,4 +1,4 @@
-import amqp from "amqplib";
+import amqp, { ConfirmChannel } from "amqplib";
 import {
     clientWelcome,
     commandStatus,
@@ -11,11 +11,17 @@ import {
     declareAndBind,
     SimpleQueueType,
 } from "../internal/pubsub/declareAndBind.js";
-import { ExchangePerilDirect, PauseKey } from "../internal/routing/routing.js";
+import {
+    ArmyMovesPrefix,
+    ExchangePerilDirect,
+    ExchangePerilTopic,
+    PauseKey,
+} from "../internal/routing/routing.js";
 import { commandSpawn } from "../internal/gamelogic/spawn.js";
 import { commandMove } from "../internal/gamelogic/move.js";
 import { subscribeJSON } from "../internal/pubsub/subscribeJSON.js";
-import { handlerPause } from "./handlers.js";
+import { handlerMove, handlerPause } from "./handlers.js";
+import { publishJSON } from "../internal/pubsub/publishJSON.js";
 
 async function main() {
     console.log("Starting Peril client...");
@@ -37,18 +43,19 @@ async function main() {
     );
 
     const username = await clientWelcome();
+    const gameState = new GameState(username);
+    const publishCh = await connection.createChannel();
 
-    await declareAndBind(
+    await subscribeJSON(
         connection,
-        ExchangePerilDirect,
-        `${PauseKey}.${username}`,
-        PauseKey,
+        ExchangePerilTopic,
+        `${ArmyMovesPrefix}.${username}`,
+        `${ArmyMovesPrefix}.*`,
         SimpleQueueType.Transient,
+        handlerMove(gameState),
     );
 
-    const gameState = new GameState(username);
-
-    subscribeJSON(
+    await subscribeJSON(
         connection,
         ExchangePerilDirect,
         `${PauseKey}.${username}`,
@@ -73,7 +80,14 @@ async function main() {
             }
         } else if (command === "move") {
             try {
-                commandMove(gameState, words);
+                const move = commandMove(gameState, words);
+                await publishJSON(
+                    publishCh as ConfirmChannel,
+                    ExchangePerilTopic,
+                    `${ArmyMovesPrefix}.${username}`,
+                    move,
+                );
+                console.log("Published a move...");
             } catch (err) {
                 console.error("Error moving a unit:", err);
             }
