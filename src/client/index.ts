@@ -7,20 +7,18 @@ import {
     printQuit,
 } from "../internal/gamelogic/gamelogic.js";
 import { GameState } from "../internal/gamelogic/gamestate.js";
-import {
-    declareAndBind,
-    SimpleQueueType,
-} from "../internal/pubsub/declareAndBind.js";
+import { SimpleQueueType } from "../internal/pubsub/declareAndBind.js";
 import {
     ArmyMovesPrefix,
     ExchangePerilDirect,
     ExchangePerilTopic,
     PauseKey,
+    WarRecognitionsPrefix,
 } from "../internal/routing/routing.js";
 import { commandSpawn } from "../internal/gamelogic/spawn.js";
 import { commandMove } from "../internal/gamelogic/move.js";
 import { subscribeJSON } from "../internal/pubsub/subscribeJSON.js";
-import { handlerMove, handlerPause } from "./handlers.js";
+import { handlerMove, handlerPause, handlerWar } from "./handlers.js";
 import { publishJSON } from "../internal/pubsub/publishJSON.js";
 
 async function main() {
@@ -52,7 +50,7 @@ async function main() {
         `${ArmyMovesPrefix}.${username}`,
         `${ArmyMovesPrefix}.*`,
         SimpleQueueType.Transient,
-        handlerMove(gameState),
+        handlerMove(gameState, publishCh),
     );
 
     await subscribeJSON(
@@ -62,6 +60,15 @@ async function main() {
         PauseKey,
         SimpleQueueType.Transient,
         handlerPause(gameState),
+    );
+
+    await subscribeJSON(
+        connection,
+        ExchangePerilTopic,
+        WarRecognitionsPrefix,
+        `${WarRecognitionsPrefix}.*`,
+        SimpleQueueType.Durable,
+        handlerWar(gameState),
     );
 
     while (true) {
